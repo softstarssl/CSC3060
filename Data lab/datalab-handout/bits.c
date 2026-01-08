@@ -134,6 +134,12 @@ NOTES:
 
 
 #endif
+
+/*
+写在最前面，一般这个作业不允许我们直接显式的使用超过0xFF(255)的常数，
+所以我们需通过位运算来构造更大的常数
+*/
+
 //1
 /* 
  * bitXor - x^y using only ~ and & 
@@ -142,8 +148,9 @@ NOTES:
  *   Max ops: 14
  *   Rating: 1
  */
-int bitXor(int x, int y) {
-  return 2;
+int bitXor(int x, int y) 
+{
+  return (~(x & y) & ~(~x & ~y));
 }
 /* 
  * tmin - return minimum two's complement integer 
@@ -151,9 +158,10 @@ int bitXor(int x, int y) {
  *   Max ops: 4
  *   Rating: 1
  */
-int tmin(void) {
-
-  return 2;
+int tmin(void) 
+{
+  //Tmin = 1000...0000
+  return 1 << 31;
 
 }
 //2
@@ -164,8 +172,13 @@ int tmin(void) {
  *   Max ops: 10
  *   Rating: 1
  */
-int isTmax(int x) {
-  return 2;
+int isTmax(int x) 
+{
+  //Tmax 的性质-> ~x = x + 1
+  //注意到 -1 同样也有这个性质
+  //所以判断 !(x + 1) 来排除 -1 的情况
+  int y = x + 1;
+  return !((~x ^ y) | (!y));
 }
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -175,8 +188,12 @@ int isTmax(int x) {
  *   Max ops: 12
  *   Rating: 2
  */
-int allOddBits(int x) {
-  return 2;
+//注意最低位是从0开始编号的
+int allOddBits(int x) 
+{
+  int mask = 0xAA | (0xAA << 8);
+  mask = mask | (mask << 16);
+  return !(mask ^ (mask & x));
 }
 /* 
  * negate - return -x 
@@ -185,8 +202,9 @@ int allOddBits(int x) {
  *   Max ops: 5
  *   Rating: 2
  */
-int negate(int x) {
-  return 2;
+int negate(int x) 
+{
+  return ~x + 1;
 }
 //3
 /* 
@@ -198,8 +216,13 @@ int negate(int x) {
  *   Max ops: 15
  *   Rating: 3
  */
-int isAsciiDigit(int x) {
-  return 2;
+int isAsciiDigit(int x) 
+{
+  int tmin = 1 << 31;
+  int inf = x + (~0x30 + 1); //x - 0x30
+  int sup = 0x39 + (~x + 1); //0x39 - x
+  //检查符号位是否为0
+  return !((inf & tmin) | (sup & tmin));
 }
 /* 
  * conditional - same as x ? y : z 
@@ -208,8 +231,13 @@ int isAsciiDigit(int x) {
  *   Max ops: 16
  *   Rating: 3
  */
-int conditional(int x, int y, int z) {
-  return 2;
+/*核心思路：将 x 转化为全0或全1的掩码，
+然后与 y 和 z 进行与运算，最后或运算得到结果*/
+int conditional(int x, int y, int z) 
+{
+  x = !x; //x为0时变为1，x非0时变为0
+  x = ~x + 1; //x为0时变为0x00000000，x非0时变为0xFFFFFFFF
+  return (y & ~x) | (z & x);
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
@@ -218,8 +246,15 @@ int conditional(int x, int y, int z) {
  *   Max ops: 24
  *   Rating: 3
  */
-int isLessOrEqual(int x, int y) {
-  return 2;
+int isLessOrEqual(int x, int y) 
+{
+  int diff = y + (~x + 1); //y - x
+  int tagx = (x >> 31) & 1; //x的符号位
+  int tagy = (y >> 31) & 1; //y的符号位
+  int tagdiff = (diff >> 31) & 1; //y - x 的符号位
+  //x和y符号位相同，则看y - x 的符号位
+  //x和y符号位不同，则看x的符号位
+  return (tagx & !tagy) | (!(tagx ^ tagy) & !tagdiff);
 }
 //4
 /* 
@@ -230,8 +265,9 @@ int isLessOrEqual(int x, int y) {
  *   Max ops: 12
  *   Rating: 4 
  */
-int logicalNeg(int x) {
-  return 2;
+int logicalNeg(int x) 
+{
+  return( (x|(~x + 1)) >> 31) + 1;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
@@ -245,7 +281,8 @@ int logicalNeg(int x) {
  *  Max ops: 90
  *  Rating: 4
  */
-int howManyBits(int x) {
+int howManyBits(int x) 
+{
   return 0;
 }
 //float
