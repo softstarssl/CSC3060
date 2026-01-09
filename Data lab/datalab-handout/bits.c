@@ -281,9 +281,32 @@ int logicalNeg(int x)
  *  Max ops: 90
  *  Rating: 4
  */
+/*有点不太像人类了，手动模拟二分/倍增法都出来了
+  没有循环语句的的坏处来了
+*/
 int howManyBits(int x) 
 {
-  return 0;
+  //首先我们要统一处理正数，所以先把负数转化成正数，其实就是取反,这样方便消去符号位
+  int tag = x >> 31;
+  int bit_0,bit_1,bit_2,bit_4,bit_8,bit_16;
+  //tag = 0000...0 = 0 ,当 x 非负, tag = 111...1111 = -1,x 是负数
+  x = x ^ tag; // tag = 0,x^tag = x; tag = -1, x^tag = ~x
+  
+  //然后就是伟大的倍增法
+  
+  bit_16 = !(!(x >> 16)) << 4; //是否高16位有1
+  x = x >> bit_16; //接下来以此类推
+  bit_8 = !(!(x >> 8)) << 3;
+  x = x >> bit_8;
+  bit_4 = !(!(x >> 4)) << 2;
+  x = x >> bit_4;
+  bit_2 = !(!(x >> 2)) << 1;
+  x = x >> bit_2;
+  bit_1 = !(!(x >> 1));
+  x = x >> bit_1;
+  bit_0 = x;
+  return bit_0 + bit_1 + bit_2 + bit_4 + bit_8 + bit_16 + 1; 
+  //最后加1是因为符号位
 }
 //float
 /* 
@@ -297,8 +320,32 @@ int howManyBits(int x)
  *   Max ops: 30
  *   Rating: 4
  */
-unsigned floatScale2(unsigned uf) {
-  return 2;
+//传入的这个无符号整数表示一个单精度浮点数，有三个部分：
+// 1位符号位，8位指数位，23位尾数位
+unsigned floatScale2(unsigned uf) 
+{
+  int sign = uf >> 31; //符号位
+  int exp = (uf >> 23) & ((1 << 8) - 1); //指数位
+  int frac = uf & ((1 << 23) - 1); //尾数位
+  //判断 是否为NaN或无穷大，NaN前面说了返回自身，无穷大的两倍还是无穷大，也返回自身
+  if(exp == 0xFF) return uf; 
+  //判断是否为非规格化数
+  if(exp == 0)
+  {
+    frac = frac << 1; //尾数左移一位
+    if(frac & (1 << 23)) //判断是否变为规格化数
+    {
+      exp = 1; //变为规格化数，指数变为1
+      frac = frac & ((1 << 23) - 1); //去掉隐含的1
+    }
+    return (sign << 31) | (exp << 23) | frac;
+  }
+  //规格化数，指数加1
+  exp = exp + 1;
+  //判断是否变为无穷大
+  if(exp == 0xFF) return (sign << 31) | (exp << 23); //尾数为0
+  return (sign << 31) | (exp << 23) | frac;
+
 }
 /* 
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
@@ -312,8 +359,24 @@ unsigned floatScale2(unsigned uf) {
  *   Max ops: 30
  *   Rating: 4
  */
-int floatFloat2Int(unsigned uf) {
-  return 2;
+int floatFloat2Int(unsigned uf) 
+{
+  int sign = uf >> 31; //符号位
+  int exp = (uf >> 23) & ((1 << 8) - 1); //指数位
+  int frac = uf & ((1 << 23) - 1); //尾数位
+  int E = exp - 127; //实际指数
+  int ans;
+
+  if(exp == 0xFF) return 0x80000000u; //NaN或无穷大
+  if(E < 0) return 0; //小于1的数，转化为整数为0
+  if(E >= 31) return 0x80000000u; //超出 int 范围
+
+  ans = frac | (1 << 23); //加上隐含的1,把 frac 按照正数数值来算
+
+  if(E >= 23) ans = ans << (E - 23); //乘的> 2^23 ，相当于还要左移
+  else ans = ans >> (23 - E); //乘的< 2^23 ，相当于右移
+
+  return sign ? -ans : ans; //根据符号位返回正负值
 }
 /* 
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
@@ -328,6 +391,12 @@ int floatFloat2Int(unsigned uf) {
  *   Max ops: 30 
  *   Rating: 4
  */
-unsigned floatPower2(int x) {
-    return 2;
+unsigned floatPower2(int x) 
+{
+    int INF = 0xFF << 23; //表示无穷大的浮点数
+    int exp = x + 127; //计算指数位
+    if(exp <= 0) return 0; //太小，返回0
+    if(exp >= 255) return INF; //太大
+
+    return exp << 23; //返回浮点数表示
 }
