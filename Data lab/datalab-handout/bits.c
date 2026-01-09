@@ -395,7 +395,8 @@ unsigned floatPower2(int x)
 {
     int INF = 0xFF << 23; //表示无穷大的浮点数
     int exp = x + 127; //计算指数位
-    if(exp <= 0) return 0; //太小，返回0
+    if(x < -149) return 0; //太小，返回0
+    if(exp <= 0) return 1 << (exp + 22); //非规格化数
     if(exp >= 255) return INF; //太大
 
     return exp << 23; //返回浮点数表示
